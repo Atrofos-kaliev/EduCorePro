@@ -2,8 +2,15 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-10">
-    <MudText Typo="Typo.h3" Color="Color.Primary" GutterBottom="true">Добро пожаловать в EduCore Pro!</MudText>
-    <MudText Typo="Typo.body1" Class="mb-4">ИИ-помощник преподавателя успешно запущен.</MudText>
-    <MudButton Variant="Variant.Filled" Color="Color.Success">MudBlazor работает!</MudButton>
-</MudContainer>
+<Router AppAssembly="@typeof(Main).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <MudText Typo="Typo.h3" Color="Color.Error">Страница не найдена</MudText>
+            <MudText Typo="Typo.body1">Похоже, этот модуль еще в разработке.</MudText>
+        </LayoutView>
+    </NotFound>
+</Router>
