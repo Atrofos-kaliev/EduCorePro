@@ -21,6 +21,8 @@ public partial class MainWindow : Window
 
             serviceCollection.AddSingleton<Services.SettingsService>();
 
+            serviceCollection.AddSingleton<Services.AiService>();
+
             Resources.Add("services", serviceCollection.BuildServiceProvider());
         }
         catch (Exception ex)

@@ -1,4 +1,6 @@
 @page "/"
+@using EduCorePro.Services
+@inject AiService Ai
 
 <MudText Typo="Typo.h3" Color="Color.Primary" GutterBottom="true">Dashboard</MudText>
 <MudText Typo="Typo.body1" Class="mb-6">Выберите модуль для начала работы.</MudText>
@@ -17,3 +19,44 @@
         </MudCard>
     </MudItem>
 </MudGrid>
+
+<MudPaper Class="pa-6 mt-8" Elevation="3" MaxWidth="800px">
+    <MudText Typo="Typo.h6" GutterBottom="true" Color="Color.Secondary">
+        <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Class="mr-2" /> 
+        Тестовая связь c ИИ
+    </MudText>
+    
+    <MudTextField @bind-Value="_prompt" Label="Напишите сообщение ИИ..." Variant="Variant.Outlined" Lines="3" />
+    
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="AskAi" Disabled="@_isLoading">
+        @if (_isLoading)
+        {
+            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+            <MudText Class="ms-2">ИИ думает...</MudText>
+        }
+        else
+        {
+            <MudText>Отправить запрос</MudText>
+        }
+    </MudButton>
+
+    @if (!string.IsNullOrEmpty(_response))
+    {
+        <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true" Style="background-color: #f5f5f5;">
+            <MudText Typo="Typo.body1">@_response</MudText>
+        </MudPaper>
+    }
+</MudPaper>
+
+@code {
+    string _prompt = "Привет! Представься. Ты готов помогать преподавателю создавать учебные материалы?";
+    string _response = "";
+    bool _isLoading = false;
+
+    async Task AskAi()
+    {
+        _isLoading = true;
+        _response = await Ai.SendPromptAsync(_prompt);
+        _isLoading = false;
+    }
+}
