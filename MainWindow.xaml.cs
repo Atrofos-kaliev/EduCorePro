@@ -19,6 +19,8 @@ public partial class MainWindow : Window
 
             serviceCollection.AddMudServices(); 
 
+            serviceCollection.AddSingleton<Services.SettingsService>();
+
             Resources.Add("services", serviceCollection.BuildServiceProvider());
         }
         catch (Exception ex)
