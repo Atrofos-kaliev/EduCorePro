@@ -1,4 +1,0 @@
-D:\Education\PRACTICE\EduCorePro\EduCorePro\obj\Debug\net9.0-windows\EduCorePro.csproj.AssemblyReference.cache
-D:\Education\PRACTICE\EduCorePro\EduCorePro\obj\Debug\net9.0-windows\App.g.cs
-D:\Education\PRACTICE\EduCorePro\EduCorePro\obj\Debug\net9.0-windows\EduCorePro_Content.g.cs
-D:\Education\PRACTICE\EduCorePro\EduCorePro\obj\Debug\net9.0-windows\EduCorePro_MarkupCompile.cache
