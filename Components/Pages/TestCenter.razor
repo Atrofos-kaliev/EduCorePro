@@ -1,0 +1,110 @@
+@page "/testcenter"
+@using EduCorePro.Services
+@using EduCorePro.Models
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@inject AiService Ai
+@inject DbService Db
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true" Color="Color.Primary">Модуль «Тест-Центр»</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">Генерация проверочных тестов из PDF-учебника с сохранением в базу данных.</MudText>
+
+<MudPaper Class="pa-6" Elevation="3">
+    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles" Accept=".pdf">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                Загрузить PDF для тестов
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+
+    @if (_selectedFile != null)
+    {
+        <MudText Typo="Typo.body2" Class="mt-2">Файл: @_selectedFile.Name</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="GenerateTests" Disabled="@_isLoading">
+            Сгенерировать тесты
+        </MudButton>
+    }
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+    }
+</MudPaper>
+
+<MudText Typo="Typo.h6" Class="mt-8 mb-4">Сохраненные вопросы в БД:</MudText>
+<MudTable Items="@_questions" Hover="true" Breakpoint="Breakpoint.Sm">
+    <HeaderContent>
+        <MudTh>Вопрос</MudTh>
+        <MudTh>Правильный ответ</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Question</MudTd>
+        <MudTd>@context.CorrectAnswer</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private IBrowserFile? _selectedFile;
+    private bool _isLoading = false;
+    private List<QuizQuestion> _questions = new();
+
+    protected override void OnInitialized() => LoadQuestions();
+
+    private void UploadFiles(IBrowserFile file) => _selectedFile = file;
+
+    private void LoadQuestions() => _questions = Db.GetAllQuestions();
+
+    private async Task GenerateTests()
+    {
+        _isLoading = true;
+        try
+        {
+            var tempPath = Path.GetTempFileName();
+            using (var stream = File.Create(tempPath))
+            {
+                await _selectedFile!.OpenReadStream(50 * 1024 * 1024).CopyToAsync(stream);
+            }
+
+            string text = DocService.ExtractTextFromPdf(tempPath, 10);
+            
+            string prompt = $@"Ты эксперт по созданию тестов. На основе текста создай 5 вопросов с 4 вариантами ответа.
+Формат ответа СТРОГО такой (без лишних слов):
+Вопрос: [Текст вопроса]
+A: [Вариант]
+B: [Вариант]
+C: [Вариант]
+D: [Вариант]
+Правильный: [Буква A, B, C или D]
+---
+Текст: {text}";
+
+            string response = await Ai.SendPromptAsync(prompt);
+            
+            var blocks = response.Split("---", StringSplitOptions.RemoveEmptyEntries);
+            foreach (var block in blocks)
+            {
+                var lines = block.Trim().Split('\n');
+                if (lines.Length < 6) continue;
+
+                var q = new QuizQuestion {
+                    Question = lines[0].Replace("Вопрос:", "").Trim(),
+                    OptionA = lines[1].Replace("A:", "").Trim(),
+                    OptionB = lines[2].Replace("B:", "").Trim(),
+                    OptionC = lines[3].Replace("C:", "").Trim(),
+                    OptionD = lines[4].Replace("D:", "").Trim(),
+                    CorrectAnswer = lines[5].Replace("Правильный:", "").Trim()
+                };
+                Db.SaveQuestion(q);
+            }
+
+            Snackbar.Add("Тесты успешно созданы и сохранены в БД!", Severity.Success);
+            LoadQuestions();
+            File.Delete(tempPath);
+        }
+        catch (Exception ex) { Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error); }
+        finally { _isLoading = false; }
+    }
+}

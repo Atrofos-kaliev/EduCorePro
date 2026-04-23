@@ -25,7 +25,7 @@ public class AiService
         {
             var builder = Kernel.CreateBuilder();
             builder.AddOpenAIChatCompletion(
-                modelId: "llama-3.1-8b-instant",
+                modelId: "meta-llama/llama-4-scout-17b-16e-instruct",
                 apiKey: apiKey,
                 endpoint: new Uri("https://api.groq.com/openai/v1")
             );

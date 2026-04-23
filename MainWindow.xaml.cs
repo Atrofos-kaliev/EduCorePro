@@ -23,6 +23,10 @@ public partial class MainWindow : Window
 
             serviceCollection.AddSingleton<Services.AiService>();
 
+            serviceCollection.AddSingleton<Services.DocumentService>();
+
+            serviceCollection.AddSingleton<Services.DbService>();
+
             Resources.Add("services", serviceCollection.BuildServiceProvider());
         }
         catch (Exception ex)

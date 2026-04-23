@@ -1,4 +1,135 @@
 @page "/methodist"
+@using System.Text
+@using EduCorePro.Services
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@inject AiService Ai
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h4" GutterBottom="true">Модуль «Методист»</MudText>
-<MudText Typo="Typo.body1">Здесь скоро появится загрузка PDF и ИИ-генерация Word-документов.</MudText>
+<MudText Typo="Typo.h4" GutterBottom="true" Color="Color.Primary">Модуль «Методист»</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">Загрузите PDF-учебник, и ИИ автоматически сгенерирует структуру учебного курса в формате Word.</MudText>
+
+<MudPaper Class="pa-6" Elevation="3">
+    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles" Accept=".pdf">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                Загрузить PDF-учебник
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+
+    @if (_selectedFile != null)
+    {
+        <MudText Typo="Typo.body2" Class="mt-2">Выбран файл: <b>@_selectedFile.Name</b></MudText>
+        
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="GenerateCourse" Disabled="@_isLoading">
+            Сгенерировать программу курса
+        </MudButton>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="mt-6">
+            <MudText Typo="Typo.body2" Color="Color.Info" Class="mb-2">@_statusMessage</MudText>
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-2" />
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_savedFilePath))
+    {
+        <MudAlert Severity="Severity.Success" Class="mt-6">
+            Готово! Файл сохранен в ваши Документы:<br/>
+            <b>@_savedFilePath</b>
+        </MudAlert>
+    }
+</MudPaper>
+
+@code {
+    private IBrowserFile? _selectedFile;
+    private bool _isLoading = false;
+    private string _statusMessage = "";
+    private string _savedFilePath = "";
+
+    private void UploadFiles(IBrowserFile file)
+    {
+        _selectedFile = file;
+        _savedFilePath = "";
+    }
+
+    private async Task GenerateCourse()
+    {
+        if (_selectedFile == null) return;
+
+        _isLoading = true;
+        _savedFilePath = "";
+
+        try
+        {
+            _statusMessage = "Загрузка файла...";
+            StateHasChanged();
+            var tempPath = Path.GetTempFileName();
+            using (var stream = File.Create(tempPath))
+            {
+                await _selectedFile.OpenReadStream(50 * 1024 * 1024).CopyToAsync(stream);
+            }
+
+            _statusMessage = "Извлечение текста из PDF...";
+            StateHasChanged();
+            string fullText = DocService.ExtractTextFromPdf(tempPath, 30);
+
+            int chunkSize = 4000;
+            var chunks = new List<string>();
+            for (int i = 0; i < fullText.Length; i += chunkSize)
+            {
+                chunks.Add(fullText.Substring(i, Math.Min(chunkSize, fullText.Length - i)));
+            }
+
+            StringBuilder allTopics = new StringBuilder();
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                _statusMessage = $"Анализ текста ИИ: часть {i + 1} из {chunks.Count}...";
+                StateHasChanged();
+
+                string extractPrompt = $"Выдели основные учебные темы и понятия из этого текста. Напиши кратко, списком. Текст:\n{chunks[i]}";
+                string response = await Ai.SendPromptAsync(extractPrompt);
+                
+                allTopics.AppendLine(response);
+
+                await Task.Delay(2000); 
+            }
+
+            _statusMessage = "Формирование итоговой программы курса...";
+            StateHasChanged();
+            
+            string finalPrompt = $@"Ты опытный методист университета. Вот список тем, собранных из учебника:
+{allTopics.ToString()}
+
+Составь подробную Рабочую программу курса (РПД). 
+Обязательно включи следующие разделы:
+1. Цели и задачи освоения дисциплины.
+2. Тематический план (Лекции и Практические занятия).
+3. Краткое содержание каждой темы (2-3 предложения о том, что изучается).
+
+Используй Markdown: ## для главных заголовков, ### для подзаголовков, **жирный текст** для выделения важного. Не пиши вводных слов, выдай сразу готовый текст документа.";
+
+            string finalResponse = await Ai.SendPromptAsync(finalPrompt);
+
+            _statusMessage = "Сохранение Word документа...";
+            StateHasChanged();
+            _savedFilePath = DocService.CreateWordDocument(finalResponse, "Рабочая_Программа");
+            
+            Snackbar.Add("Программа успешно сгенерирована!", Severity.Success);
+            File.Delete(tempPath);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

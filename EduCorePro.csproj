@@ -21,7 +21,8 @@
     <PackageReference Include="MudBlazor" Version="9.3.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="NPOI" Version="2.8.0" />
-    <PackageReference Include="ShapeCrawler" Version="0.79.1" />
+    <PackageReference Include="PdfPig" Version="0.1.14" />
+    <PackageReference Include="ShapeCrawler" Version="0.39.0" />
   </ItemGroup>
 
 </Project>
